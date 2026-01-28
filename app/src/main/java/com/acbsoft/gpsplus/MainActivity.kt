@@ -14,57 +14,53 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        // 1. WebView Oluşturma
         webView = WebView(this)
         setContentView(webView)
 
-        // 2. WebView Ayarları
         webView.settings.apply {
             javaScriptEnabled = true
-            domStorageEnabled = true         // Verilerin kaydedilmesi (localStorage) için şart
-            allowFileAccess = true
-            setGeolocationEnabled(true)      // Web tarafındaki konum özelliğini açar
-            databaseEnabled = true
-            // Gereksiz olan mediaPlayback ayarı kaldırıldı
+            domStorageEnabled = true
+            setGeolocationEnabled(true)
         }
 
-        // 3. İzin Köprüsü (Geolocation Odaklı)
+        // KÖPRÜ: JavaScript'ten "Android.requestLocation()" diyebilmemizi sağlar
+        webView.addJavascriptInterface(WebAppInterface(), "Android")
+
         webView.webChromeClient = object : WebChromeClient() {
             override fun onGeolocationPermissionsShowPrompt(
                 origin: String,
                 callback: GeolocationPermissions.Callback
             ) {
-                // Web sayfasından gelen konum isteğine doğrudan onay verir
                 callback.invoke(origin, true, false)
             }
-
-            // onPermissionRequest (Kamera isteği) bloğu tamamen kaldırıldı
         }
 
-        // Linklerin uygulama içinde kalmasını sağlar
         webView.webViewClient = WebViewClient()
-
-        // 4. Sadece Konum İzinlerini Kontrol Et
-        checkAndRequestPermissions()
-
-        // 5. Uygulamayı Başlat
         webView.loadUrl("file:///android_asset/index.html")
     }
 
+    // JavaScript'ten çağrılacak sınıf
+    inner class WebAppInterface {
+        @JavascriptInterface
+        fun requestLocation() {
+            runOnUiThread {
+                checkAndRequestPermissions()
+            }
+        }
+    }
+
     private fun checkAndRequestPermissions() {
-        // Sadece konum izinleri listeye alındı, CAMERA çıkarıldı
         val permissions = arrayOf(
             Manifest.permission.ACCESS_FINE_LOCATION,
             Manifest.permission.ACCESS_COARSE_LOCATION
         )
-
+        
         val notGranted = permissions.filter {
-            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+            ContextCompat.checkSelfPermission(this@MainActivity, it) != PackageManager.PERMISSION_GRANTED
         }
 
         if (notGranted.isNotEmpty()) {
-            ActivityCompat.requestPermissions(this, notGranted.toTypedArray(), 1)
+            ActivityCompat.requestPermissions(this@MainActivity, notGranted.toTypedArray(), 1)
         }
     }
 }
