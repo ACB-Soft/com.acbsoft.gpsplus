@@ -1,0 +1,8 @@
+{
+  "name": "ACB_Soft GPS Plus v4.5.0",
+  "description": "Profesyonel saha verisi toplama ve ZIP destekli fotoğraf aktarma aracı.",
+  "requestFramePermissions": [
+    "geolocation",
+    "camera"
+  ]
+}
