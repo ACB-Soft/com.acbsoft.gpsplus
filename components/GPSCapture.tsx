@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Coordinate, SavedLocation } from '../types';
 import { convertToMSL } from './GeoidUtils';
-import { Geolocation } from '@capacitor/geolocation'; // Capacitor eklentisi eklendi
+import { Geolocation } from '@capacitor/geolocation';
 
 interface Props {
   onComplete: (coord: Coordinate, folderName: string, pointName: string, description: string) => void;
@@ -24,7 +24,7 @@ const GPSCapture: React.FC<Props> = ({ onComplete, onCancel, isContinuing = fals
   const lastPositionRef = useRef<GeolocationPosition | null>(null);
   const watchIdRef = useRef<number | null>(null);
 
-  // Android için Yerel İzin İsteği
+  // Android İzin Yönetimi
   useEffect(() => {
     const requestGPSPermission = async () => {
       try {
@@ -33,7 +33,7 @@ const GPSCapture: React.FC<Props> = ({ onComplete, onCancel, isContinuing = fals
           await Geolocation.requestPermissions();
         }
       } catch (error) {
-        console.error("İzin istenirken hata oluştu:", error);
+        console.error("GPS İzin hatası:", error);
       }
     };
     requestGPSPermission();
@@ -253,19 +253,11 @@ const GPSCapture: React.FC<Props> = ({ onComplete, onCancel, isContinuing = fals
               onClick={handleStartMeasurement} 
               disabled={instantAccuracy === null}
               className="w-full py-5 md:py-6 bg-emerald-600 text-white rounded-2xl font-black text-[13px] md:text-[14px] active:scale-[0.96] disabled:bg-slate-200 transition-all uppercase tracking-[0.25em] leading-none shadow-2xl shadow-emerald-100"
-            >
+            >\
               ÖLÇÜMÜ BAŞLAT
             </button>
           </div>
         ) : (
           <div className="space-y-2 animate-pulse py-4">
             <p className="font-black text-emerald-600 text-[12px] md:text-[13px] uppercase tracking-[0.3em] leading-none">{sampleCount} PAKET VERİ</p>
-            <p className="text-slate-400 text-[11px] md:text-[12px] font-bold leading-none uppercase tracking-widest">SABİT TUTUN</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-export default GPSCapture;
+            <p className="text-slate-400 text
