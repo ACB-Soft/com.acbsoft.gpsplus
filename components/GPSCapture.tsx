@@ -24,15 +24,22 @@ const GPSCapture: React.FC<Props> = ({ onComplete, onCancel, isContinuing = fals
   const lastPositionRef = useRef<GeolocationPosition | null>(null);
   const watchIdRef = useRef<number | null>(null);
 
+  // Geliştirilmiş İzin Kontrolü ve Tanılama
   useEffect(() => {
     const requestGPSPermission = async () => {
       try {
+        console.log("İzin kontrolü başlıyor...");
         const permissions = await Geolocation.checkPermissions();
+        
         if (permissions.location !== 'granted') {
-          await Geolocation.requestPermissions();
+          const request = await Geolocation.requestPermissions();
+          if (request.location !== 'granted') {
+             alert("Konum izni verilmedi. Lütfen ayarlardan izin verin.");
+          }
         }
-      } catch (error) {
-        console.error("GPS İzin hatası:", error);
+      } catch (error: any) {
+        // Eğer eklenti yüklenmemişse burası çalışır
+        alert("GPS Eklenti Hatası: " + error.message);
       }
     };
     requestGPSPermission();
@@ -49,7 +56,7 @@ const GPSCapture: React.FC<Props> = ({ onComplete, onCancel, isContinuing = fals
 
   useEffect(() => {
     if (step === 'READY' || step === 'COUNTDOWN') {
-      watchIdRef.current = navigator.geolocation.watchPosition(
+      watchIdRef.current = window.navigator.geolocation.watchPosition(
         (pos) => {
           setInstantAccuracy(pos.coords.accuracy);
           lastPositionRef.current = pos;
@@ -63,18 +70,21 @@ const GPSCapture: React.FC<Props> = ({ onComplete, onCancel, isContinuing = fals
             setSampleCount(samplesRef.current.length);
           }
         },
-        (err) => { setInstantAccuracy(null); },
-        { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 }
+        (err) => { 
+          console.error("Konum hatası:", err);
+          setInstantAccuracy(null); 
+        },
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
       );
     } else {
       if (watchIdRef.current) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
+        window.navigator.geolocation.clearWatch(watchIdRef.current);
         watchIdRef.current = null;
       }
     }
     return () => { 
       if (watchIdRef.current) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
+        window.navigator.geolocation.clearWatch(watchIdRef.current);
         watchIdRef.current = null;
       }
     };
@@ -93,7 +103,7 @@ const GPSCapture: React.FC<Props> = ({ onComplete, onCancel, isContinuing = fals
       });
     }
     if (samples.length === 0) {
-      alert("Konum verisi alınamadı.");
+      alert("Hata: Henüz konum verisi alınamadı. Lütfen bekleyin.");
       setStep('READY');
       return;
     }
