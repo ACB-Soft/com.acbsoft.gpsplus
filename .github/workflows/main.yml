@@ -22,9 +22,10 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Install Dependencies
+      - name: Install Project Dependencies
         run: |
           npm install
+          # Vite build sırasında hata almamak için eklentiyi buraya ekliyoruz
           npm install @capacitor/geolocation @capacitor/core @capacitor/cli @capacitor/android
 
       - name: Build Web App (Vite)
@@ -32,19 +33,25 @@ jobs:
 
       - name: Setup Capacitor and Android
         run: |
+          # Capacitor'ü başlat
           npx cap init "GPS Plus" "com.acbsoft.gpsplus" --web-dir dist
+          
+          # Android klasörü yoksa ekle, varsa güncelle
           if [ ! -d "android" ]; then
             npx cap add android
           fi
-
-      - name: Sync Capacitor
-        run: npx cap sync android
+          
+          # Eklentiyi Android yerel koduna (MainActivity.java vb.) zorla işle
+          npx cap sync android
 
       - name: Clean & Fix Kotlin Conflict
         run: |
           cd android
+          # Duplicate class (Kotlin çakışması) hatasını önlemek için kütüphane dışlama kuralları
           sed -i '/dependencies {/a \    configurations.all { exclude group: "org.jetbrains.kotlin", module: "kotlin-stdlib-jdk8" }' app/build.gradle
           sed -i '/dependencies {/a \    configurations.all { exclude group: "org.jetbrains.kotlin", module: "kotlin-stdlib-jdk7" }' app/build.gradle
+          
+          # Gradle konfigürasyonlarını zorla
           echo "android.useAndroidX=true" >> gradle.properties
           echo "android.enableJetifier=true" >> gradle.properties
           echo "kotlin.stdlib.default.dependency=false" >> gradle.properties
@@ -53,6 +60,7 @@ jobs:
         run: |
           cd android
           chmod +x gradlew
+          # Kotlin sürümünü sabitleyerek APK'yı oluştur
           ./gradlew assembleDebug -PkotlinVersion=1.8.22 --no-daemon
 
       - name: Upload APK Artifact
