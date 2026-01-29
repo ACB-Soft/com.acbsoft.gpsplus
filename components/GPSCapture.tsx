@@ -1,27 +1,7 @@
-// 1. En üste ekle
-import { Geolocation } from '@capacitor/geolocation';
-
-// ... (mevcut diğer importlar)
-
-const GPSCapture: React.FC<Props> = ({ onComplete, onCancel, isContinuing = false, existingLocations }) => {
-  // ... (mevcut state'ler)
-
-  // 2. İzinleri kontrol eden yeni bir useEffect ekle
-  useEffect(() => {
-    const requestGPSPermission = async () => {
-      const permissions = await Geolocation.checkPermissions();
-      if (permissions.location !== 'granted') {
-        await Geolocation.requestPermissions();
-      }
-    };
-    requestGPSPermission();
-  }, []);
-
-  // ... (mevcut kodun devamı)
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Coordinate, SavedLocation } from '../types';
 import { convertToMSL } from './GeoidUtils';
+import { Geolocation } from '@capacitor/geolocation'; // Capacitor eklentisi eklendi
 
 interface Props {
   onComplete: (coord: Coordinate, folderName: string, pointName: string, description: string) => void;
@@ -43,6 +23,21 @@ const GPSCapture: React.FC<Props> = ({ onComplete, onCancel, isContinuing = fals
   const samplesRef = useRef<Coordinate[]>([]);
   const lastPositionRef = useRef<GeolocationPosition | null>(null);
   const watchIdRef = useRef<number | null>(null);
+
+  // Android için Yerel İzin İsteği
+  useEffect(() => {
+    const requestGPSPermission = async () => {
+      try {
+        const permissions = await Geolocation.checkPermissions();
+        if (permissions.location !== 'granted') {
+          await Geolocation.requestPermissions();
+        }
+      } catch (error) {
+        console.error("İzin istenirken hata oluştu:", error);
+      }
+    };
+    requestGPSPermission();
+  }, []);
 
   const getNextPointName = useCallback((projName: string) => {
     const projPoints = existingLocations.filter(l => l.folderName === projName);
