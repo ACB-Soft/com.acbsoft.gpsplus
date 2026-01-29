@@ -1,7 +1,7 @@
 import React from 'react';
 import { BRAND_NAME } from '../version';
 import { Geolocation } from '@capacitor/geolocation';
-import { NativeSettings, SettingsOption } from 'capacitor-native-settings';
+import { NativeSettings } from 'capacitor-native-settings'; // SettingsOption çıkartıldı
 
 interface Props {
   onFinish: () => void;
@@ -13,18 +13,16 @@ const Onboarding: React.FC<Props> = ({ onFinish }) => {
     try {
       // 1. ADIM: Konum Servisi (GPS Donanımı) Açık mı?
       try {
-        // Çok kısa süreli bir konum sorgusu ile GPS'in aktifliğini test ediyoruz
         await Geolocation.getCurrentPosition({ timeout: 2000, enableHighAccuracy: true });
       } catch (e: any) {
-        // Eğer konum servisi kapalıysa bu hata döner
         if (e.message.includes("Location services are not enabled") || e.code === "LOCATION_SERVICES_DISABLED") {
           alert("Devam etmek için cihazınızın KONUM (GPS) servisini açmanız gerekmektedir. Şimdi ayarlara yönlendiriliyorsunuz.");
           
-          // Kullanıcıyı doğrudan Android Konum Ayarları sayfasına gönderir
+          // SettingsOption yerine doğrudan string veya enum objesi üzerinden erişim
           await NativeSettings.open({
-            option: SettingsOption.LocationServices,
+            option: 'locationServices', // String olarak geçmek derleme hatasını çözer
           });
-          return; // İşlemi burada durdur, kullanıcı ayarları açıp geri gelmeli
+          return;
         }
       }
 
@@ -39,12 +37,11 @@ const Onboarding: React.FC<Props> = ({ onFinish }) => {
         }
       }
 
-      // 3. ADIM: Her şey tamamsa uygulamaya giriş yap
+      // 3. ADIM: Giriş
       onFinish();
 
     } catch (error: any) {
       console.error("Başlatma hatası:", error);
-      // Beklenmedik bir hata olsa bile izinleri tekrar zorla
       const finalCheck = await Geolocation.requestPermissions();
       if (finalCheck.location === 'granted') onFinish();
     }
@@ -52,7 +49,6 @@ const Onboarding: React.FC<Props> = ({ onFinish }) => {
 
   return (
     <div className="flex-1 flex flex-col bg-white h-full animate-in overflow-hidden px-8 py-6 md:py-10 justify-around">
-      {/* Üst Kısım: Logo ve Başlık */}
       <div className="flex flex-col items-center text-center shrink-0">
         <div className="relative mb-4 md:mb-6">
           <div className="absolute inset-0 bg-blue-600/10 blur-3xl rounded-full"></div>
@@ -71,7 +67,7 @@ const Onboarding: React.FC<Props> = ({ onFinish }) => {
         </div>
       </div>
 
-      <div className="flex flex-col items-center w-full max-sm mx-auto space-y-4 md:space-y-5">
+      <div className="flex flex-col items-center w-full max-w-sm mx-auto space-y-4 md:space-y-5">
         <div className="w-full flex gap-4 md:gap-5 text-left items-center p-4 md:p-6 bg-slate-50/50 rounded-[1.8rem] border border-slate-100">
           <div className="w-10 h-10 md:w-12 md:h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 shrink-0">
             <i className="fas fa-location-crosshairs text-lg md:text-xl"></i>
@@ -97,7 +93,6 @@ const Onboarding: React.FC<Props> = ({ onFinish }) => {
         </div>
       </div>
 
-      {/* Buton Alanı */}
       <div className="w-full max-w-sm mx-auto shrink-0">
         <button 
           onClick={handleStart}
