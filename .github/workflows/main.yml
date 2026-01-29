@@ -15,7 +15,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          # Cache satırı silindi, hata bu yüzden oluşuyordu.
+
+      # Java sürümünü 17 olarak ayarlıyoruz (Android derlemesi için kritik)
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
 
       - name: Install Dependencies
         run: npm install
