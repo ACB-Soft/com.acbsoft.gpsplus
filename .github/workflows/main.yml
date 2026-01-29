@@ -42,13 +42,16 @@ jobs:
       - name: Build Android APK
         run: |
           cd android
-          # Kotlin çakışmasını engellemek için gradle.properties dosyasına zorunlu ayar ekle
-          echo "android.useAndroidX=true" >> gradle.properties
-          echo "android.enableJetifier=true" >> gradle.properties
+          # Çakışan kütüphaneleri kökten temizlemek için build.gradle'a müdahale ediyoruz
+          sed -i '/dependencies {/a \    modules { module("org.jetbrains.kotlin:kotlin-stdlib-jdk8") { replacedBy("org.jetbrains.kotlin:kotlin-stdlib") } }' build.gradle
+          sed -i '/dependencies {/a \    modules { module("org.jetbrains.kotlin:kotlin-stdlib-jdk7") { replacedBy("org.jetbrains.kotlin:kotlin-stdlib") } }' build.gradle
           
-          # Kotlin sürüm çakışmasını Gradle parametresi olarak geçiyoruz
+          echo "configurations.all {
+              resolutionStrategy.force 'org.jetbrains.kotlin:kotlin-stdlib:1.8.22'
+          }" >> build.gradle
+          
           chmod +x gradlew
-          ./gradlew assembleDebug -PkotlinVersion=1.8.22
+          ./gradlew assembleDebug -Pandroid.useAndroidX=true -Pandroid.enableJetifier=true
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
