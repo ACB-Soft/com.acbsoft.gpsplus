@@ -39,19 +39,23 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync android
 
+      - name: Clean & Fix Kotlin Conflict
+        run: |
+          cd android
+          # Çakışan jdk8 modülünü tüm bağımlılıklardan dışla
+          sed -i '/dependencies {/a \    configurations.all { exclude group: "org.jetbrains.kotlin", module: "kotlin-stdlib-jdk8" }' app/build.gradle
+          sed -i '/dependencies {/a \    configurations.all { exclude group: "org.jetbrains.kotlin", module: "kotlin-stdlib-jdk7" }' app/build.gradle
+          
+          # Gradle ayarlarını zorla
+          echo "android.useAndroidX=true" >> gradle.properties
+          echo "android.enableJetifier=true" >> gradle.properties
+          echo "kotlin.stdlib.default.dependency=false" >> gradle.properties
+
       - name: Build Android APK
         run: |
           cd android
-          # Çakışan kütüphaneleri kökten temizlemek için build.gradle'a müdahale ediyoruz
-          sed -i '/dependencies {/a \    modules { module("org.jetbrains.kotlin:kotlin-stdlib-jdk8") { replacedBy("org.jetbrains.kotlin:kotlin-stdlib") } }' build.gradle
-          sed -i '/dependencies {/a \    modules { module("org.jetbrains.kotlin:kotlin-stdlib-jdk7") { replacedBy("org.jetbrains.kotlin:kotlin-stdlib") } }' build.gradle
-          
-          echo "configurations.all {
-              resolutionStrategy.force 'org.jetbrains.kotlin:kotlin-stdlib:1.8.22'
-          }" >> build.gradle
-          
           chmod +x gradlew
-          ./gradlew assembleDebug -Pandroid.useAndroidX=true -Pandroid.enableJetifier=true
+          ./gradlew assembleDebug -PkotlinVersion=1.8.22 --no-daemon
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
