@@ -25,7 +25,6 @@ jobs:
       - name: Install Dependencies
         run: |
           npm install
-          # Vite'ın hata vermemesi için eklentiyi build öncesi kuruyoruz
           npm install @capacitor/geolocation @capacitor/core @capacitor/cli @capacitor/android
 
       - name: Build Web App (Vite)
