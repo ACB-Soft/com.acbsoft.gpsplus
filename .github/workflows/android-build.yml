@@ -15,32 +15,34 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          # Cache kaldırıldı çünkü package-lock.json dosyanız henüz depoda yok.
-          # Bu sayede 'Dependencies lock file is not found' hatası çözülür.
 
       - name: Install Dependencies
+        # 'working-directory' komutu ile terminali dosyalarının olduğu klasöre sokuyoruz
+        working-directory: app/src/main/assets
         run: npm install
 
       - name: Build Web App (Vite)
+        working-directory: app/src/main/assets
         run: npm run build
 
       - name: Setup Capacitor and Android
+        working-directory: app/src/main/assets
         run: |
-          # Capacitor bileşenlerini yükle
           npm install @capacitor/core @capacitor/cli @capacitor/android
-          # Projeyi initialize et (Eğer daha önce android klasörü yoksa oluşturur)
           npx cap init "GPS Plus" "com.acbsoft.gpsplus" --web-dir dist
-          # Android platformunu ekle (Hata almamak için varlığını kontrol eder)
           if [ ! -d "android" ]; then
             npx cap add android
           fi
 
       - name: Sync Capacitor
+        working-directory: app/src/main/assets
         run: npx cap sync android
 
       - name: Build Android APK
+        # Gradle komutu genellikle ana android klasöründe çalışır
+        # Eğer Capacitor android klasörünü assets içinde oluşturduysa burayı güncelleyeceğiz
+        working-directory: app/src/main/assets/android
         run: |
-          cd android
           chmod +x gradlew
           ./gradlew assembleDebug
 
@@ -48,4 +50,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: GPS-Plus-v4.7.0-Debug-APK
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: app/src/main/assets/android/app/build/outputs/apk/debug/app-debug.apk
