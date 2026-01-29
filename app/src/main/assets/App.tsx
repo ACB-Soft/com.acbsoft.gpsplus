@@ -1,0 +1,1 @@
+// Uygulama index.html dosyasına taşındı.
