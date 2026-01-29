@@ -42,17 +42,13 @@ jobs:
       - name: Build Android APK
         run: |
           cd android
-          # Kotlin çakışmasını çözmek için Gradle'a zorunlu strateji ekliyoruz
-          echo "configurations.all {
-              resolutionStrategy.eachDependency { DependencyResolveDetails details ->
-                  if (details.requested.group == 'org.jetbrains.kotlin') {
-                      details.useVersion '1.8.22'
-                  }
-              }
-          }" >> build.gradle
+          # Kotlin çakışmasını engellemek için gradle.properties dosyasına zorunlu ayar ekle
+          echo "android.useAndroidX=true" >> gradle.properties
+          echo "android.enableJetifier=true" >> gradle.properties
           
+          # Kotlin sürüm çakışmasını Gradle parametresi olarak geçiyoruz
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug -PkotlinVersion=1.8.22
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
