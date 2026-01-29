@@ -15,6 +15,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: 'npm' # Build süresini kısaltmak için önbellekleme eklendi
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -25,7 +26,10 @@ jobs:
       - name: Install Project Dependencies
         run: |
           npm install
+          # Gerekli tüm Capacitor eklentileri
           npm install @capacitor/geolocation @capacitor/core @capacitor/cli @capacitor/android
+          # Ayarlara yönlendirme kütüphanesi eklendi
+          npm install capacitor-native-settings
 
       - name: Build Web App (Vite)
         run: npm run build
@@ -40,10 +44,8 @@ jobs:
 
       - name: Force Inject Permissions to AndroidManifest
         run: |
-          # Manifest dosyasının yolunu tanımla
           MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
-          
-          # İzinleri manifest etiketinin hemen altına ekle (eğer yoksa)
+          # İzinlerin manifest dosyasına fiziksel olarak yazıldığından emin oluyoruz
           sed -i '/<manifest/a \    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />' $MANIFEST_PATH
           sed -i '/<manifest/a \    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />' $MANIFEST_PATH
           sed -i '/<manifest/a \    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />' $MANIFEST_PATH
@@ -66,5 +68,5 @@ jobs:
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: GPS-Plus-v4.7.0-Debug-APK
+          name: GPS-Plus-v4.9.0-Optimized-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
