@@ -1,3 +1,24 @@
+// 1. En üste ekle
+import { Geolocation } from '@capacitor/geolocation';
+
+// ... (mevcut diğer importlar)
+
+const GPSCapture: React.FC<Props> = ({ onComplete, onCancel, isContinuing = false, existingLocations }) => {
+  // ... (mevcut state'ler)
+
+  // 2. İzinleri kontrol eden yeni bir useEffect ekle
+  useEffect(() => {
+    const requestGPSPermission = async () => {
+      const permissions = await Geolocation.checkPermissions();
+      if (permissions.location !== 'granted') {
+        await Geolocation.requestPermissions();
+      }
+    };
+    requestGPSPermission();
+  }, []);
+
+  // ... (mevcut kodun devamı)
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Coordinate, SavedLocation } from '../types';
 import { convertToMSL } from './GeoidUtils';
