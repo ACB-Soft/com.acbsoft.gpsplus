@@ -1,1 +1,0 @@
-// Redundant - Logic migrated to GPSCapture.tsx
