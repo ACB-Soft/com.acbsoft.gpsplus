@@ -23,15 +23,16 @@ jobs:
           distribution: 'temurin'
 
       - name: Install Dependencies
-        run: npm install
+        run: |
+          npm install
+          # Vite'ın hata vermemesi için eklentiyi build öncesi kuruyoruz
+          npm install @capacitor/geolocation @capacitor/core @capacitor/cli @capacitor/android
 
       - name: Build Web App (Vite)
         run: npm run build
 
       - name: Setup Capacitor and Android
         run: |
-          # Geolocation eklentisi buraya eklendi
-          npm install @capacitor/core @capacitor/cli @capacitor/android @capacitor/geolocation
           npx cap init "GPS Plus" "com.acbsoft.gpsplus" --web-dir dist
           if [ ! -d "android" ]; then
             npx cap add android
@@ -43,11 +44,8 @@ jobs:
       - name: Clean & Fix Kotlin Conflict
         run: |
           cd android
-          # Çakışan jdk8 ve jdk7 modüllerini dışla
           sed -i '/dependencies {/a \    configurations.all { exclude group: "org.jetbrains.kotlin", module: "kotlin-stdlib-jdk8" }' app/build.gradle
           sed -i '/dependencies {/a \    configurations.all { exclude group: "org.jetbrains.kotlin", module: "kotlin-stdlib-jdk7" }' app/build.gradle
-          
-          # Gradle ayarlarını zorla
           echo "android.useAndroidX=true" >> gradle.properties
           echo "android.enableJetifier=true" >> gradle.properties
           echo "kotlin.stdlib.default.dependency=false" >> gradle.properties
