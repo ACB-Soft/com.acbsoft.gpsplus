@@ -2,6 +2,8 @@ import { SavedLocation } from '../types';
 import { BRAND_NAME, FULL_BRAND } from '../version';
 
 export const generateKML = (locations: SavedLocation[]): string => {
+  if (locations.length === 0) return "";
+
   const placemarks = locations.map(loc => `
     <Placemark>
       <name>${escapeXml(loc.name)}</name>
@@ -34,49 +36,4 @@ const escapeXml = (unsafe: string) => {
       default: return c;
     }
   });
-};
-
-export const downloadKML = (locations: SavedLocation[]) => {
-  if (locations.length === 0) {
-    alert("Kayıt bulunamadı.");
-    return;
-  }
-  
-  const kmlContent = generateKML(locations);
-  const blob = new Blob([kmlContent], { type: 'application/vnd.google-earth.kml+xml' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16);
-  link.href = url;
-  link.download = `ACB_GPS_Verisi_${timestamp}.kml`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-};
-
-export const shareKML = async (locations: SavedLocation[]) => {
-  if (locations.length === 0) return;
-  
-  const kmlContent = generateKML(locations);
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16);
-  const fileName = `ACB_GPS_Verisi_${timestamp}.kml`;
-  
-  const file = new File([kmlContent], fileName, { type: 'application/vnd.google-earth.kml+xml' });
-
-  if (navigator.share) {
-    try {
-      await navigator.share({
-        files: [file],
-        title: `${BRAND_NAME} Saha Verileri`,
-        text: `Google Earth için ${BRAND_NAME} tarafından hazırlanan veriler.`
-      });
-    } catch (err) {
-      console.error("Sharing failed", err);
-      downloadKML(locations); // Fallback to download
-    }
-  } else {
-    downloadKML(locations);
-  }
 };
