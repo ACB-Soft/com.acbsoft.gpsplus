@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
+import { App as CapacitorApp } from '@capacitor/app'; // Android Geri Tuşu için eklendi
 import Onboarding from './components/Onboarding';
 import Dashboard from './components/Dashboard';
 import GPSCapture from './components/GPSCapture';
@@ -10,14 +11,28 @@ import { SavedLocation, Coordinate } from './types';
 import { FULL_BRAND } from './version';
 
 const App = () => {
-  // 1. KURAL: Uygulama her zaman 'onboarding' ekranı ile başlar.
+  // Uygulama her zaman 'onboarding' ile başlar
   const [view, setView] = useState<'onboarding' | 'dashboard' | 'capture' | 'list' | 'export' | 'result'>('onboarding');
   const [locations, setLocations] = useState<SavedLocation[]>([]);
   const [lastResult, setLastResult] = useState<SavedLocation | null>(null);
   const [isContinuing, setIsContinuing] = useState(false);
 
+  // --- ANDROID GERİ TUŞU YÖNETİMİ ---
   useEffect(() => {
-    // Veri Yedekleme ve v4.7.0 Geçiş Mantığı (Korundu)
+    const backListener = CapacitorApp.addListener('backButton', () => {
+      if (view === 'dashboard' || view === 'onboarding') {
+        CapacitorApp.exitApp(); // Ana ekrandaysa uygulamayı kapat
+      } else {
+        setView('dashboard'); // Alt sayfalardaysa Dashboard'a dön
+      }
+    });
+
+    return () => {
+      backListener.then(l => l.remove());
+    };
+  }, [view]);
+
+  useEffect(() => {
     const CURRENT_KEY = 'gps_locations_v4.7.0';
     const OLD_KEY = 'gps_locations_v4.6';
 
@@ -31,17 +46,13 @@ const App = () => {
     }
     
     if (saved) setLocations(JSON.parse(saved));
-
-    // DİKKAT: Onboarding kontrolü (doneness check) buradan kaldırıldı.
-    // Bu sayede uygulama her yenilendiğinde view state'i varsayılan olan 'onboarding'de kalır.
+    // NOT: Onboarding tamamlandı kontrolü bilinçli olarak kaldırıldı.
   }, []);
 
-  // Kayıt Fonksiyonu
   useEffect(() => {
     localStorage.setItem('gps_locations_v4.7.0', JSON.stringify(locations));
   }, [locations]);
 
-  // 2. KURAL: Onboarding'den Dashboard'a geçişi sağlayan bağ.
   const handleFinishOnboarding = () => {
     setView('dashboard');
   };
@@ -80,7 +91,6 @@ const App = () => {
     }
   };
 
-  // Alt Menü Bileşeni (Sabit Tasarım)
   const GlobalFooter = () => (
     <footer className="shrink-0 py-6 text-center border-t border-slate-50">
       <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">
@@ -91,13 +101,8 @@ const App = () => {
 
   return (
     <div className="flex flex-col h-screen w-full bg-white font-sans text-slate-900 select-none overflow-hidden">
-      
-      {/* ONBOARDING GÖRÜNÜMÜ */}
-      {view === 'onboarding' && (
-        <Onboarding onFinish={handleFinishOnboarding} />
-      )}
+      {view === 'onboarding' && <Onboarding onFinish={handleFinishOnboarding} />}
 
-      {/* ANA EKRAN (DASHBOARD) */}
       {view === 'dashboard' && (
         <div className="flex-1 flex flex-col animate-in">
           <Dashboard 
@@ -109,7 +114,6 @@ const App = () => {
         </div>
       )}
 
-      {/* ÖLÇÜM EKRANI */}
       {view === 'capture' && (
         <div className="flex-1 flex flex-col animate-in">
           <GPSCapture 
@@ -122,7 +126,6 @@ const App = () => {
         </div>
       )}
 
-      {/* LİSTE EKRANI */}
       {view === 'list' && (
         <div className="flex-1 flex flex-col animate-in h-full bg-[#F8FAFC]">
           <header className="px-8 pt-12 pb-6 flex items-center gap-4 bg-white">
@@ -138,7 +141,6 @@ const App = () => {
         </div>
       )}
 
-      {/* VERİ AKTARMA EKRANI */}
       {view === 'export' && (
         <div className="flex-1 flex flex-col animate-in h-full bg-[#F8FAFC]">
           <header className="px-8 pt-12 pb-6 flex items-center gap-4 bg-white">
@@ -154,7 +156,6 @@ const App = () => {
         </div>
       )}
 
-      {/* SONUÇ EKRANI */}
       {view === 'result' && lastResult && (
         <div className="flex-1 flex flex-col animate-in h-full px-8 pt-12 overflow-hidden bg-white">
           <div className="flex-1 flex flex-col justify-center max-w-sm mx-auto w-full">
@@ -171,7 +172,6 @@ const App = () => {
   );
 };
 
-// Root Render
 const container = document.getElementById('root');
 if (container) {
   const root = createRoot(container);
