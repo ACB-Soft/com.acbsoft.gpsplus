@@ -15,7 +15,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          # Kilit dosyası hatasını önlemek için 'cache: npm' satırı kaldırıldı
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -25,9 +24,9 @@ jobs:
 
       - name: Install Project Dependencies
         run: |
-          # Eğer package-lock.json yoksa npm install normal şekilde çalışacaktır
           npm install
-          npm install @capacitor/geolocation @capacitor/core @capacitor/cli @capacitor/android
+          # Filesystem eklentisini buraya ekledik:
+          npm install @capacitor/geolocation @capacitor/share @capacitor/filesystem @capacitor/core @capacitor/cli @capacitor/android
           npm install capacitor-native-settings
 
       - name: Build Web App (Vite)
@@ -41,18 +40,16 @@ jobs:
           fi
           npx cap sync android
 
-      - name: Force Inject Permissions to AndroidManifest
-        run: |
-          MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
-          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />' $MANIFEST_PATH
-          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />' $MANIFEST_PATH
-          sed -i '/<manifest/a \    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />' $MANIFEST_PATH
+      # NOT: Force Inject Permissions adımını kaldırdık çünkü AndroidManifest.xml'i manuel güncelledik.
 
       - name: Clean & Fix Kotlin Conflict
         run: |
           cd android
+          # Çakışan jdk8 modülünü tüm bağımlılıklardan dışla
           sed -i '/dependencies {/a \    configurations.all { exclude group: "org.jetbrains.kotlin", module: "kotlin-stdlib-jdk8" }' app/build.gradle
           sed -i '/dependencies {/a \    configurations.all { exclude group: "org.jetbrains.kotlin", module: "kotlin-stdlib-jdk7" }' app/build.gradle
+          
+          # Gradle ayarlarını zorla
           echo "android.useAndroidX=true" >> gradle.properties
           echo "android.enableJetifier=true" >> gradle.properties
           echo "kotlin.stdlib.default.dependency=false" >> gradle.properties
@@ -66,5 +63,5 @@ jobs:
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: GPS-Plus-v4.9.0-Optimized-APK
+          name: GPS-Plus-Final-Build
           path: android/app/build/outputs/apk/debug/app-debug.apk
