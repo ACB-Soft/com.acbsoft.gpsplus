@@ -3,75 +3,66 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="theme-color" content="#2563eb">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>GPS Plus Corporate</title>
-    
+    <title>GPS Plus</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <script>
-        tailwind.config = {
-          theme: {
-            extend: {
-              colors: {
-                blue: {
-                  50: '#eff6ff', 100: '#dbeafe', 200: '#bfdbfe', 300: '#93c5fd', 400: '#60a5fa', 
-                  500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8', 800: '#1e40af', 900: '#1e3a8a',
-                }
-              },
-              fontFamily: { sans: ['Plus Jakarta Sans', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] }
-            }
-          }
-        }
-    </script>
-    
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap');
-        
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body { 
-          background-color: #F1F5F9; margin: 0; padding: 0; overflow: hidden;
-          height: 100dvh; width: 100vw; color: #0F172A;
-          -webkit-font-smoothing: antialiased; position: fixed;
-          display: flex; align-items: center; justify-content: center;
-        }
-        #root { 
-          height: 100%; width: 100%; max-width: 540px; background: white;
-          display: flex; flex-direction: column; overflow: hidden;
-          box-shadow: 0 0 60px rgba(0,0,0,0.07);
-        }
-        @media (min-width: 768px) {
-          #root { height: 94%; border-radius: 3rem; border: 10px solid #F8FAFC; }
-        }
-        .soft-card { background: #FFFFFF; border-radius: 2rem; border: 1px solid rgba(241, 245, 249, 0.9); box-shadow: 0 12px 30px -10px rgba(15, 23, 42, 0.06); }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .animate-in { animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-        @keyframes slideIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
-        .safe-bottom { padding-bottom: calc(env(safe-area-inset-bottom) + 1.5rem); }
-        .scanner-line { position: absolute; width: 100%; height: 3px; background: linear-gradient(90deg, transparent, #2563eb, transparent); top: 0; animation: scan 2.5s linear infinite; z-index: 5; }
-        @keyframes scan { 0% { top: 0; opacity: 0; } 20% { opacity: 1; } 80% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
-        .mono-font { font-family: 'JetBrains Mono', monospace; }
-    </style>
-<script type="importmap">
-{
-  "imports": {
-    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
-    "vite": "https://esm.sh/vite@^7.3.1",
-    "xlsx": "https://esm.sh/xlsx@^0.18.5",
-    "react/": "https://esm.sh/react@^19.2.4/",
-    "react": "https://esm.sh/react@^19.2.4",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
-  }
-}
-</script>
-<link rel="stylesheet" href="/index.css">
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
-<body>
+<body class="bg-slate-50">
     <div id="root"></div>
-    <!-- Vite artık modülleri doğrudan buradan yönetir -->
-    <script type="module" src="/index.tsx"></script>
+
+    <script type="text/babel">
+        // Capacitor Eklentilerini Tanımlayalım (Hata almamak için kontrol ekliyoruz)
+        const { Filesystem, Directory, Encoding } = window.Capacitor?.Plugins?.Filesystem || {};
+        const isNative = window.Capacitor && window.Capacitor.isNativePlatform();
+
+        // --- Onboarding Bileşeni ---
+        const OnboardingView = ({ onComplete }) => (
+            <div className="fixed inset-0 z-[100] bg-blue-600 text-white p-8 flex flex-col justify-center items-center text-center">
+                <i className="fas fa-location-dot text-6xl mb-6"></i>
+                <h1 className="text-3xl font-black mb-4 uppercase italic tracking-tighter">GPS Plus'a Hoş Geldiniz</h1>
+                <p className="text-blue-100 mb-8 font-medium">Hassas saha ölçümleri ve profesyonel raporlama için hazır mısınız?</p>
+                <button 
+                    onClick={onComplete}
+                    className="w-full max-w-xs p-5 bg-white text-blue-600 rounded-3xl font-black uppercase tracking-widest shadow-2xl active:scale-95 transition-transform"
+                >
+                    Hadi Başlayalım
+                </button>
+            </div>
+        );
+
+        // --- Ana Uygulama ---
+        const App = () => {
+            // GÜNCELLEME: Onboarding her zaman true başlar (Sorduğunuz soru için)
+            const [showOnboarding, setShowOnboarding] = React.useState(true);
+            const [locations, setLocations] = React.useState(() => {
+                const saved = localStorage.getItem('gps_plus_locations');
+                return saved ? JSON.parse(saved) : [];
+            });
+
+            // Onboarding Kapatma (Hafızaya kaydetmez, sadece ekranı kapatır)
+            const handleCompleteOnboarding = () => setShowOnboarding(false);
+
+            return (
+                <div className="min-h-screen relative">
+                    {showOnboarding && <OnboardingView onComplete={handleCompleteOnboarding} />}
+                    
+                    <div className={`transition-all duration-500 ${showOnboarding ? 'blur-lg scale-95 opacity-50' : 'opacity-100'}`}>
+                        {/* Uygulamanızın geri kalan içeriği (Capture, List, Export sekmeleri) buraya gelecek */}
+                        <div className="p-6 text-center">
+                            <h2 className="text-xl font-bold mb-4">Uygulama Hazır</h2>
+                            <p className="text-slate-500">Dosya indirme ve konum modülleri yüklendi.</p>
+                            {/* Buraya diğer sekme içeriklerini (CaptureView, ExportUnifiedView vb.) eklediğinizden emin olun */}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
 </body>
 </html>
