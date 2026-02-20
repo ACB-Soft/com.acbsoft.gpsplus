@@ -24,197 +24,232 @@ const GPSCapture: React.FC<Props> = ({ onComplete, onCancel, isContinuing = fals
   const lastPositionRef = useRef<GeolocationPosition | null>(null);
   const watchIdRef = useRef<number | null>(null);
 
-  // Geliştirilmiş İzin Kontrolü (Donmayı Engelleyen Güvenli Sürüm)
+  // Geliştirilmiş İzin Kontrolü ve Tanılama
   useEffect(() => {
     const requestGPSPermission = async () => {
       try {
+        console.log("İzin kontrolü başlıyor...");
         const permissions = await Geolocation.checkPermissions();
+        
         if (permissions.location !== 'granted') {
           const request = await Geolocation.requestPermissions();
           if (request.location !== 'granted') {
-            alert("Uygulamanın çalışması için konum izni gereklidir.");
-            onCancel();
+             alert("Konum izni verilmedi. Lütfen ayarlardan izin verin.");
           }
         }
-      } catch (err) {
-        console.error("GPS İzin hatası:", err);
+      } catch (error: any) {
+        // Eğer eklenti yüklenmemişse burası çalışır
+        alert("GPS Eklenti Hatası: " + error.message);
       }
     };
     requestGPSPermission();
-  }, [onCancel]);
-
-  // Konum İzleme Başlatma
-  useEffect(() => {
-    const startWatching = async () => {
-      try {
-        const id = await navigator.geolocation.watchPosition(
-          (pos) => {
-            lastPositionRef.current = pos;
-            setInstantAccuracy(pos.coords.accuracy);
-            if (pos.coords.accuracy <= 10) setWaitingForSignal(false);
-          },
-          (err) => console.error("Sinyal hatası:", err),
-          { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-        );
-        watchIdRef.current = id;
-      } catch (e) {
-        console.error("Watch başlatılamadı:", e);
-      }
-    };
-
-    startWatching();
-    return () => {
-      if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
-    };
   }, []);
 
-  const handleStartMeasurement = () => {
-    if (instantAccuracy && instantAccuracy > 15) {
-      setWaitingForSignal(true);
-      return;
-    }
-    setStep('COUNTDOWN');
-  };
+  const getNextPointName = useCallback((projName: string) => {
+    const projPoints = existingLocations.filter(l => l.folderName === projName);
+    return `Nokta ${projPoints.length + 1}`;
+  }, [existingLocations]);
 
   useEffect(() => {
-    let timer: any;
-    if (step === 'COUNTDOWN' && seconds > 0) {
-      timer = setInterval(() => setSeconds(s => s - 1), 1000);
-    } else if (step === 'COUNTDOWN' && seconds === 0) {
-      setStep('READY'); // Ölçüm Başlasın
-      startSampling();
-    }
-    return () => clearInterval(timer);
-  }, [step, seconds]);
+    if (folderName) setPointName(getNextPointName(folderName));
+  }, [folderName, getNextPointName]);
 
-  const startSampling = () => {
-    samplesRef.current = [];
-    setSampleCount(0);
-    const interval = setInterval(() => {
-      if (lastPositionRef.current) {
-        const p = lastPositionRef.current.coords;
-        const msl = convertToMSL(p.latitude, p.longitude, p.altitude || 0);
-        samplesRef.current.push({
-          lat: p.latitude,
-          lng: p.longitude,
-          alt: p.altitude || 0,
-          msl: msl,
-          acc: p.accuracy,
-          timestamp: Date.now()
-        });
-        setSampleCount(prev => prev + 1);
+  useEffect(() => {
+    if (step === 'READY' || step === 'COUNTDOWN') {
+      watchIdRef.current = window.navigator.geolocation.watchPosition(
+        (pos) => {
+          setInstantAccuracy(pos.coords.accuracy);
+          lastPositionRef.current = pos;
+          if (step === 'COUNTDOWN' && waitingForSignal) setWaitingForSignal(false);
+          if (step === 'COUNTDOWN' && !waitingForSignal) {
+            const msl = convertToMSL(pos.coords.latitude, pos.coords.longitude, pos.coords.altitude);
+            samplesRef.current.push({
+              lat: pos.coords.latitude, lng: pos.coords.longitude,
+              accuracy: pos.coords.accuracy, altitude: msl, timestamp: Date.now()
+            });
+            setSampleCount(samplesRef.current.length);
+          }
+        },
+        (err) => { 
+          console.error("Konum hatası:", err);
+          setInstantAccuracy(null); 
+        },
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+      );
+    } else {
+      if (watchIdRef.current) {
+        window.navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
       }
-    }, 1000);
+    }
+    return () => { 
+      if (watchIdRef.current) {
+        window.navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+    };
+  }, [step, waitingForSignal]);
 
-    setTimeout(() => {
-      clearInterval(interval);
-      finalizeMeasurement();
-    }, 10000); // 10 saniyelik hassas ölçüm
-  };
-
-  const finalizeMeasurement = () => {
-    if (samplesRef.current.length === 0) {
-      alert("Yeterli sinyal alınamadı.");
+  const processSamples = useCallback(() => {
+    let samples = [...samplesRef.current];
+    if (samples.length === 0 && lastPositionRef.current) {
+      const p = lastPositionRef.current;
+      samples.push({ 
+        lat: p.coords.latitude, 
+        lng: p.coords.longitude, 
+        accuracy: p.coords.accuracy, 
+        altitude: convertToMSL(p.coords.latitude, p.coords.longitude, p.coords.altitude), 
+        timestamp: Date.now() 
+      });
+    }
+    if (samples.length === 0) {
+      alert("Hata: Henüz konum verisi alınamadı. Lütfen bekleyin.");
       setStep('READY');
       return;
     }
-
     const avg = {
-      lat: samplesRef.current.reduce((a, b) => a + b.lat, 0) / samplesRef.current.length,
-      lng: samplesRef.current.reduce((a, b) => a + b.lng, 0) / samplesRef.current.length,
-      alt: samplesRef.current.reduce((a, b) => a + b.alt, 0) / samplesRef.current.length,
-      msl: samplesRef.current.reduce((a, b) => a + b.msl, 0) / samplesRef.current.length,
-      acc: samplesRef.current.reduce((a, b) => a + b.acc, 0) / samplesRef.current.length,
+      lat: samples.reduce((a, b) => a + b.lat, 0) / samples.length,
+      lng: samples.reduce((a, b) => a + b.lng, 0) / samples.length,
+      accuracy: samples.reduce((a, b) => a + b.accuracy, 0) / samples.length,
+      altitude: samples.reduce((a, b) => a + (b.altitude || 0), 0) / samples.length,
       timestamp: Date.now()
     };
+    onComplete(avg, folderName, pointName, '');
+  }, [folderName, pointName, onComplete]);
 
-    localStorage.setItem('last_folder_name', folderName);
-    onComplete(avg, folderName, pointName, "");
+  useEffect(() => {
+    let timer: any;
+    if (step === 'COUNTDOWN' && !waitingForSignal && seconds > 0) {
+      timer = setInterval(() => setSeconds(s => s - 1), 1000);
+    } else if (step === 'COUNTDOWN' && !waitingForSignal && seconds === 0) {
+      processSamples();
+    }
+    return () => clearInterval(timer);
+  }, [step, seconds, processSamples, waitingForSignal]);
+
+  const handleStartMeasurement = () => {
+    samplesRef.current = [];
+    setSeconds(5);
+    if (lastPositionRef.current && instantAccuracy !== null) setWaitingForSignal(false);
+    else setWaitingForSignal(true);
+    setStep('COUNTDOWN');
   };
 
-  return (
-    <div className="flex-1 flex flex-col bg-white h-full overflow-hidden px-8 pt-12">
-      <header className="flex items-center gap-4 mb-8">
-        <button onClick={onCancel} className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400">
-          <i className="fas fa-times"></i>
-        </button>
-        <h2 className="text-xl font-black tracking-tight uppercase">Hassas Ölçüm</h2>
+  const getAccuracyColor = (acc: number | null) => {
+    if (acc === null) return "text-slate-300";
+    if (acc <= 5) return "text-emerald-500";
+    if (acc <= 15) return "text-amber-500";
+    return "text-red-500";
+  };
+  
+  const getAccuracyBg = (acc: number | null) => {
+     if (acc === null) return "bg-slate-50 border-slate-200";
+     if (acc <= 5) return "bg-emerald-50 border-emerald-200";
+     if (acc <= 15) return "bg-amber-50 border-amber-200";
+     return "bg-red-50 border-red-200";
+  };
+
+  if (step === 'SELECT_MODE') return (
+    <div className="w-full flex flex-col bg-[#F8FAFC] h-full relative overflow-hidden">
+      <header className="px-8 pt-10 pb-6 flex items-center gap-5 bg-white w-full">
+        <button onClick={onCancel} className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-md border border-slate-100 text-slate-800"><i className="fas fa-chevron-left"></i></button>
+        <h2 className="text-2xl font-black text-slate-900 tracking-tight">Ölçüm Başlat</h2>
       </header>
+      <div className="w-full max-w-sm px-8 pt-8 space-y-4 mx-auto">
+        <button onClick={() => { setIsNewProject(true); setFolderName(''); setStep('FORM'); }} className="w-full p-6 bg-white rounded-3xl shadow-md border border-slate-100 flex items-center gap-5">
+          <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shrink-0"><i className="fas fa-folder-plus text-xl"></i></div>
+          <span className="font-black text-lg text-slate-900">Yeni Proje Oluştur</span>
+        </button>
+        <button onClick={() => { setIsNewProject(false); setStep('FORM'); }} className="w-full p-6 bg-white rounded-3xl shadow-md border border-slate-100 flex items-center gap-5">
+          <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center shrink-0"><i className="fas fa-folder-open text-xl"></i></div>
+          <span className="font-black text-lg text-slate-900">Mevcut Proje Seç</span>
+        </button>
+      </div>
+    </div>
+  );
 
-      <div className="flex-1 overflow-y-auto no-scrollbar pb-10">
-        {step === 'SELECT_MODE' && (
-          <div className="space-y-4 animate-in">
-             <button onClick={() => { setIsNewProject(true); setStep('FORM'); }} className="w-full p-6 bg-blue-600 rounded-[2rem] text-left text-white shadow-xl shadow-blue-100">
-                <i className="fas fa-plus-circle text-2xl mb-4"></i>
-                <span className="block font-black uppercase text-xs tracking-widest">YENİ PROJE BAŞLAT</span>
-             </button>
-             <button onClick={() => { setIsNewProject(false); setStep('FORM'); }} className="w-full p-6 bg-slate-900 rounded-[2rem] text-left text-white shadow-xl shadow-slate-200">
-                <i className="fas fa-folder-open text-2xl mb-4"></i>
-                <span className="block font-black uppercase text-xs tracking-widest">MEVCUT PROJEYE EKLE</span>
-             </button>
-          </div>
-        )}
-
-        {step === 'FORM' && (
-          <div className="space-y-6 animate-in">
-             <div className="space-y-2 text-center py-4">
-                <h3 className="text-3xl font-black text-slate-900 tracking-tighter uppercase italic">Proje Detayları</h3>
-                <p className="text-sm text-slate-400 font-bold uppercase tracking-widest">Veri Organizasyonu</p>
-             </div>
-             
-             <div className="space-y-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Klasör / Proje İsmi</label>
-                  {isNewProject ? (
-                    <input autoFocus type="text" value={folderName} onChange={e => setFolderName(e.target.value.toUpperCase())} placeholder="ÖRN: SAHA-01" className="w-full p-5 bg-slate-50 rounded-2xl font-bold text-slate-900 outline-none border-2 border-transparent focus:border-blue-600 transition-all uppercase" />
-                  ) : (
-                    <select value={folderName} onChange={e => setFolderName(e.target.value)} className="w-full p-5 bg-slate-50 rounded-2xl font-bold text-slate-900 outline-none border-2 border-transparent focus:border-blue-600 appearance-none uppercase">
-                      <option value="">PROJE SEÇİNİZ</option>
-                      {[...new Set(existingLocations.map(l => l.folderName))].map(name => (
-                        <option key={name} value={name}>{name}</option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-                <button disabled={!folderName} onClick={() => setStep('READY')} className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black text-[13px] uppercase tracking-widest shadow-xl shadow-blue-100 disabled:bg-slate-200 transition-all">DEVAM ET</button>
-             </div>
-          </div>
-        )}
-
-        {step === 'READY' && (
-          <div className="flex flex-col items-center justify-center py-10 animate-in text-center">
-            <div className="w-32 h-32 bg-slate-50 rounded-[3rem] flex items-center justify-center mb-8 relative">
-              <div className="scanner-line"></div>
-              <i className={`fas fa-satellite-dish text-4xl ${instantAccuracy && instantAccuracy < 10 ? 'text-emerald-500' : 'text-slate-300'}`}></i>
-            </div>
-            <h3 className="text-2xl font-black text-slate-900 mb-2 uppercase italic">Sinyal Hazırlanıyor</h3>
-            <p className="text-sm text-slate-400 font-medium max-w-[200px]">Hassas konum verisi için lütfen açık alanda bekleyiniz.</p>
-            
-            {instantAccuracy !== null && (
-               <div className="mt-8 px-6 py-3 bg-slate-900 rounded-full">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2">Hassasiyet:</span>
-                  <span className={`font-mono font-bold ${instantAccuracy < 5 ? 'text-emerald-400' : (instantAccuracy < 10 ? 'text-yellow-400' : 'text-red-400')}`}>±{instantAccuracy.toFixed(1)}m</span>
-               </div>
+  if (step === 'FORM') return (
+    <div className="w-full flex flex-col bg-[#F8FAFC] h-full relative overflow-hidden">
+      <header className="px-8 pt-10 pb-6 flex items-center gap-5 bg-white w-full">
+        <button onClick={() => setStep('SELECT_MODE')} className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-md border border-slate-100 text-slate-800"><i className="fas fa-chevron-left"></i></button>
+        <h2 className="text-2xl font-black text-slate-900 tracking-tight">Proje Bilgisi</h2>
+      </header>
+      <div className="w-full max-w-sm px-8 pt-8 mx-auto">
+        <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm space-y-6">
+          <div className="space-y-2">
+            <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest px-1">Proje Adı</label>
+            {isNewProject ? (
+              <input type="text" placeholder="Örn: Saha Çalışması A" value={folderName} onChange={e => setFolderName(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-900 outline-none focus:border-blue-600 focus:bg-white transition-all" />
+            ) : (
+              <select value={folderName} onChange={e => setFolderName(e.target.value)} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-900 outline-none w-full">
+                <option value="">Seçiniz...</option>
+                {Array.from(new Set(existingLocations.map(l => l.folderName))).map(n => <option key={n} value={n}>{n}</option>)}
+              </select>
             )}
           </div>
-        )}
+          <button 
+            disabled={!folderName.trim()}
+            onClick={() => { localStorage.setItem('last_folder_name', folderName); setStep('READY'); }} 
+            className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black text-[13px] uppercase tracking-[0.2em] disabled:opacity-30"
+          >
+            ÖLÇÜME HAZIRLAN
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 
-        {step === 'COUNTDOWN' && (
-           <div className="flex flex-col items-center justify-center py-12 text-center animate-in">
-              <div className="text-8xl font-black text-blue-600 tracking-tighter mb-4 italic italic-style">{seconds}</div>
-              <p className="text-sm font-black text-slate-400 uppercase tracking-[0.3em]">Ölçüm Başlıyor</p>
-           </div>
-        )}
+  return (
+    <div className="w-full flex flex-col items-center justify-around p-8 bg-white h-full text-center relative overflow-hidden">
+      <button onClick={() => step === 'COUNTDOWN' ? setStep('READY') : setStep('FORM')} className="absolute left-6 top-10 w-11 h-11 flex items-center justify-center rounded-2xl bg-white shadow-lg border border-slate-100 text-slate-800 z-20">
+        <i className="fas fa-chevron-left text-sm"></i>
+      </button>
+      
+      <div className="space-y-2 pt-10 shrink-0">
+        <h3 className="text-2xl font-black text-slate-900 truncate max-w-[320px] px-4 leading-tight">{folderName}</h3>
+      </div>
+
+      <div className="relative flex items-center justify-center flex-1 w-full max-h-[350px]">
+        <div className="w-48 h-48 sm:w-56 sm:h-56 rounded-[3.5rem] border-8 border-slate-50 shadow-2xl flex items-center justify-center relative bg-white">
+          <div className={`absolute inset-4 border-2 rounded-[2.8rem] ${instantAccuracy && instantAccuracy <= 10 ? 'border-emerald-100' : 'border-slate-50'}`}></div>
+          
+          <span className="text-7xl md:text-9xl font-black text-slate-900 z-10 tracking-tighter">
+            {waitingForSignal ? (
+              <i className="fas fa-satellite fa-spin text-blue-600 text-4xl"></i>
+            ) : (
+              step === 'COUNTDOWN' ? seconds : <i className={`fas fa-satellite-dish text-5xl transition-all ${getAccuracyColor(instantAccuracy)}`}></i>
+            )}
+          </span>
+
+          {instantAccuracy !== null && (
+             <div className={`absolute -bottom-4 px-5 py-2.5 rounded-2xl border-2 shadow-xl flex items-center gap-2.5 bg-white ${getAccuracyBg(instantAccuracy)}`}>
+                <div className={`w-2.5 h-2.5 rounded-full ${getAccuracyColor(instantAccuracy).replace('text','bg')} animate-pulse`}></div>
+                <span className={`text-[12px] font-black ${getAccuracyColor(instantAccuracy)}`}>±{instantAccuracy.toFixed(1)}m</span>
+             </div>
+          )}
+        </div>
       </div>
 
       <div className="w-full max-w-sm shrink-0 pb-6">
-        {step === 'READY' && (
+        {step === 'READY' ? (
           <div className="bg-slate-50 p-6 rounded-[2.5rem] border border-slate-100 space-y-4">
             <div className="space-y-1">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Nokta İsmi</label>
-              <input type="text" value={pointName} onChange={e => setPointName(e.target.value)} placeholder="NOKTA-01" className="w-full p-4 bg-white rounded-2xl font-black text-center text-xl text-slate-900 outline-none border border-slate-200 uppercase" />
+              <input type="text" value={pointName} onChange={e => setPointName(e.target.value)} className="w-full p-4 bg-white rounded-2xl font-black text-center text-xl text-slate-900 outline-none border border-slate-200" />
             </div>
-            <button onClick={handleStartMeasurement} disabled={!pointName || !instantAccuracy} className="w-full py-5 bg-emerald-600 text-white rounded-2xl font-black text-[13px] uppercase tracking-widest shadow-xl shadow-emerald-100 active:scale-95 transition-all">ÖLÇÜMÜ BAŞLAT</button>
+            
+            <button 
+              onClick={handleStartMeasurement} 
+              disabled={instantAccuracy === null}
+              className="w-full py-5 bg-emerald-600 text-white rounded-2xl font-black text-[13px] active:scale-[0.96] disabled:bg-slate-200 transition-all uppercase tracking-[0.25em] shadow-xl shadow-emerald-100"
+            >
+              ÖLÇÜMÜ BAŞLAT
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-2 py-4">
+            <p className="font-black text-emerald-600 text-[12px] uppercase tracking-[0.3em]">{sampleCount} PAKET VERİ</p>
+            <p className="text-slate-400 text-[11px] font-bold uppercase tracking-widest">SABİT TUTUN</p>
           </div>
         )}
       </div>
