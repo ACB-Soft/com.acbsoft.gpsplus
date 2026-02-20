@@ -10,20 +10,17 @@ import { SavedLocation, Coordinate } from './types';
 import { FULL_BRAND } from './version';
 
 const App = () => {
+  // GÜNCELLEME: Her açılışta 'onboarding' ile başla
   const [view, setView] = useState<'onboarding' | 'dashboard' | 'capture' | 'list' | 'export' | 'result'>('onboarding');
   const [locations, setLocations] = useState<SavedLocation[]>([]);
   const [lastResult, setLastResult] = useState<SavedLocation | null>(null);
   const [isContinuing, setIsContinuing] = useState(false);
 
   useEffect(() => {
-    // v4.7.0 Geçiş ve Yedekleme Mantığı
     const CURRENT_KEY = 'gps_locations_v4.7.0';
     const OLD_KEY = 'gps_locations_v4.6';
-    const ONBOARDING_KEY = 'onboarding_v4.7.0_done';
-    const OLD_ONBOARDING_KEY = 'onboarding_v4.6_done';
 
     let saved = localStorage.getItem(CURRENT_KEY);
-    // Eğer yeni anahtarda veri yoksa, eski sürümden yedek al
     if (!saved) {
       const oldData = localStorage.getItem(OLD_KEY);
       if (oldData) {
@@ -34,24 +31,15 @@ const App = () => {
     
     if (saved) setLocations(JSON.parse(saved));
 
-    let onboardingDone = localStorage.getItem(ONBOARDING_KEY);
-    if (!onboardingDone) {
-      const oldOnboarding = localStorage.getItem(OLD_ONBOARDING_KEY);
-      if (oldOnboarding) {
-        localStorage.setItem(ONBOARDING_KEY, oldOnboarding);
-        onboardingDone = oldOnboarding;
-      }
-    }
-
-    if (onboardingDone === 'true') setView('dashboard');
+    // NOT: Onboarding kontrolü kaldırıldı, uygulama her zaman OnboardingView ile açılacak
   }, []);
 
   useEffect(() => {
     localStorage.setItem('gps_locations_v4.7.0', JSON.stringify(locations));
   }, [locations]);
 
+  // GÜNCELLEME: Başla deyince sadece view değişir, localStorage kaydı yapılmaz
   const handleFinishOnboarding = () => {
-    localStorage.setItem('onboarding_v4.7.0_done', 'true');
     setView('dashboard');
   };
 
@@ -77,7 +65,6 @@ const App = () => {
     setView('capture');
   };
 
-  // Merkezi Footer Bileşeni
   const GlobalFooter = () => (
     <footer className="py-6 md:py-8 flex flex-col items-center mt-auto safe-bottom shrink-0 bg-transparent">
       <p className="text-[10px] md:text-[11px] font-black text-slate-300 uppercase tracking-[0.5em] text-center w-full">
