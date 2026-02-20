@@ -1,106 +1,67 @@
 import React from 'react';
-import { BRAND_NAME } from '../version';
-import { Geolocation } from '@capacitor/geolocation';
-import { NativeSettings } from 'capacitor-native-settings'; // SettingsOption çıkartıldı
 
-interface Props {
-  onFinish: () => void;
+interface OnboardingProps {
+  onFinish?: () => void;
+  onComplete?: () => void;
 }
 
-const Onboarding: React.FC<Props> = ({ onFinish }) => {
-
-  const handleStart = async () => {
-    try {
-      // 1. ADIM: Konum Servisi (GPS Donanımı) Açık mı?
-      try {
-        await Geolocation.getCurrentPosition({ timeout: 2000, enableHighAccuracy: true });
-      } catch (e: any) {
-        if (e.message.includes("Location services are not enabled") || e.code === "LOCATION_SERVICES_DISABLED") {
-          alert("Devam etmek için cihazınızın KONUM (GPS) servisini açmanız gerekmektedir. Şimdi ayarlara yönlendiriliyorsunuz.");
-          
-          // SettingsOption yerine doğrudan string veya enum objesi üzerinden erişim
-          await NativeSettings.open({
-            option: 'locationServices', // String olarak geçmek derleme hatasını çözer
-          });
-          return;
-        }
-      }
-
-      // 2. ADIM: Uygulama İzin Denetimi
-      const permissions = await Geolocation.checkPermissions();
-      
-      if (permissions.location !== 'granted') {
-        const request = await Geolocation.requestPermissions();
-        if (request.location !== 'granted') {
-          alert("Uygulamanın çalışabilmesi için konum izni vermeniz gerekmektedir.");
-          return;
-        }
-      }
-
-      // 3. ADIM: Giriş
-      onFinish();
-
-    } catch (error: any) {
-      console.error("Başlatma hatası:", error);
-      const finalCheck = await Geolocation.requestPermissions();
-      if (finalCheck.location === 'granted') onFinish();
+const Onboarding: React.FC<OnboardingProps> = (props) => {
+  const handleStart = () => {
+    // Yazım hatası düzeltildi ve her iki prop ismi de kontrol ediliyor
+    if (typeof props.onFinish === 'function') {
+      props.onFinish();
+    } else if (typeof props.onComplete === 'function') {
+      props.onComplete();
     }
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-white h-full animate-in overflow-hidden px-8 py-6 md:py-10 justify-around">
-      <div className="flex flex-col items-center text-center shrink-0">
-        <div className="relative mb-4 md:mb-6">
-          <div className="absolute inset-0 bg-blue-600/10 blur-3xl rounded-full"></div>
-          <div className="relative w-16 h-16 md:w-20 md:h-20 bg-blue-600 rounded-[1.5rem] md:rounded-[2rem] flex items-center justify-center shadow-2xl shadow-blue-600/30 transform rotate-2">
-            <i className="fas fa-shield-halved text-white text-2xl md:text-3xl transform -rotate-2"></i>
+    <div className="flex-1 flex flex-col relative bg-white overflow-hidden h-full">
+      <div className="absolute inset-0 bg-gradient-to-b from-blue-50/50 to-white z-0" />
+      
+      <div className="relative z-10 flex-1 flex flex-col px-8 pt-20 pb-12">
+        <div className="mb-12">
+          <div className="w-20 h-20 bg-blue-600 rounded-[2.5rem] flex items-center justify-center shadow-2xl shadow-blue-200 mb-8 animate-bounce">
+            <i className="fas fa-location-dot text-3xl text-white"></i>
           </div>
-        </div>
-        
-        <div className="space-y-2 md:space-y-3">
-          <p className="text-slate-900 font-black text-[12px] md:text-[14px] uppercase tracking-[0.18em] leading-tight max-w-[260px] mx-auto opacity-80">
-            Mobil Cihazlarınız için<br/>Konum Belirleme Uygulaması
-          </p>
-          <h1 className="text-5xl md:text-6xl font-black text-blue-600 tracking-tighter leading-none">
-            {BRAND_NAME}
+          <h1 className="text-5xl font-black text-slate-900 leading-[1.1] tracking-tighter mb-6 uppercase italic">
+            GPS Plus<br/><span className="text-blue-600 not-italic">Corporate</span>
           </h1>
-        </div>
-      </div>
-
-      <div className="flex flex-col items-center w-full max-w-sm mx-auto space-y-4 md:space-y-5">
-        <div className="w-full flex gap-4 md:gap-5 text-left items-center p-4 md:p-6 bg-slate-50/50 rounded-[1.8rem] border border-slate-100">
-          <div className="w-10 h-10 md:w-12 md:h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 shrink-0">
-            <i className="fas fa-location-crosshairs text-lg md:text-xl"></i>
-          </div>
-          <div className="space-y-1">
-            <h4 className="text-[11px] md:text-[12px] font-black text-slate-900 uppercase tracking-widest">Konum Erişimi</h4>
-            <p className="text-[12px] md:text-[13px] text-slate-500 font-bold leading-snug">
-              GPS verilerini kullanarak konum ve yükseklik bilgisi üretmek için gereklidir.
-            </p>
-          </div>
+          <p className="text-lg text-slate-500 font-medium leading-relaxed max-w-[280px]">
+            Profesyonel saha ölçüm ve veri yönetim platformuna hoş geldiniz.
+          </p>
         </div>
 
-        <div className="w-full flex gap-4 md:gap-5 text-left items-center p-4 md:p-6 bg-slate-50/50 rounded-[1.8rem] border border-slate-100">
-          <div className="w-10 h-10 md:w-12 md:h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 shrink-0">
-            <i className="fas fa-database text-lg md:text-xl"></i>
-          </div>
-          <div className="space-y-1">
-            <h4 className="text-[11px] md:text-[12px] font-black text-slate-900 uppercase tracking-widest">Güvenli Depolama</h4>
-            <p className="text-[12px] md:text-[13px] text-slate-500 font-bold leading-snug">
-              Verileriniz yalnızca yerel cihazınızda saklanır.
-            </p>
-          </div>
+        <div className="space-y-6 mb-12">
+          {[
+            { icon: 'fa-layer-group', title: 'Akıllı Klasörleme', desc: 'Projelerinizi organize edin' },
+            { icon: 'fa-file-export', title: 'Çoklu Aktarım', desc: 'KML, Excel ve TXT desteği' },
+            { icon: 'fa-shield-check', title: 'Yüksek Hassasiyet', desc: 'Milimetrik GPS verisi' }
+          ].map((item, i) => (
+            <div key={i} className="flex items-center gap-5 group">
+              <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all duration-300">
+                <i className={`fas ${item.icon} text-lg`}></i>
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900 leading-none mb-1 uppercase text-xs tracking-wider">{item.title}</h3>
+                <p className="text-sm text-slate-400 font-medium">{item.desc}</p>
+              </div>
+            </div>
+          ))}
         </div>
-      </div>
 
-      <div className="w-full max-w-sm mx-auto shrink-0">
-        <button 
-          onClick={handleStart}
-          className="w-full py-5 md:py-6 bg-blue-600 text-white rounded-[1.5rem] md:rounded-[1.8rem] font-black text-[13px] md:text-[14px] uppercase tracking-[0.2em] shadow-2xl shadow-blue-600/20 active:scale-[0.97] transition-all flex items-center justify-center gap-4"
-        >
-          İZİNLERİ ONAYLA VE BAŞLA
-          <i className="fas fa-arrow-right text-white/50 text-[11px]"></i>
-        </button>
+        <div className="mt-auto">
+          <button 
+            onClick={handleStart}
+            className="w-full bg-slate-900 text-white py-6 rounded-[2rem] font-black text-sm uppercase tracking-[0.2em] shadow-2xl active:scale-95 transition-all flex items-center justify-center gap-3 group"
+          >
+            Hadi Başlayalım
+            <i className="fas fa-arrow-right text-xs group-hover:translate-x-1 transition-transform"></i>
+          </button>
+          <p className="text-center mt-6 text-[10px] font-bold text-slate-300 uppercase tracking-[0.3em]">
+            v4.7.0 Corporate Edition
+          </p>
+        </div>
       </div>
     </div>
   );
