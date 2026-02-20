@@ -15,7 +15,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          # Kilit dosyası hatasını önlemek için 'cache: npm' satırı kaldırıldı
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -25,34 +24,43 @@ jobs:
 
       - name: Install Project Dependencies
         run: |
-          # Eğer package-lock.json yoksa npm install normal şekilde çalışacaktır
+          # package.json dosyasındaki tüm bağımlılıkları yükler
           npm install
-          npm install @capacitor/geolocation @capacitor/core @capacitor/cli @capacitor/android
-          npm install capacitor-native-settings
+          # Capacitor eklentilerinin Android tarafına kopyalanmasını sağlar
+          npx cap sync android
 
       - name: Build Web App (Vite)
         run: npm run build
 
       - name: Setup Capacitor and Android
         run: |
+          # Proje isimlendirmesi ve Android klasörü kontrolü
           npx cap init "GPS Plus" "com.acbsoft.gpsplus" --web-dir dist
           if [ ! -d "android" ]; then
             npx cap add android
           fi
+          # Yeni eklenen @capacitor/app kütüphanesini Android'e işler
           npx cap sync android
 
-      - name: Force Inject Permissions to AndroidManifest
+      - name: Inject Android Permissions & Config
         run: |
           MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
+          # Gerekli GPS izinlerini manifest dosyasına ekler
           sed -i '/<manifest/a \    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />' $MANIFEST_PATH
           sed -i '/<manifest/a \    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />' $MANIFEST_PATH
           sed -i '/<manifest/a \    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />' $MANIFEST_PATH
+          
+          # Donanım hızlandırma ve ekran ayarları (Geri tuşu performansı için)
+          sed -i 's/<application/<application android:hardwareAccelerated="true"/' $MANIFEST_PATH
 
-      - name: Clean & Fix Kotlin Conflict
+      - name: Fix Kotlin & Gradle Build Issues
         run: |
           cd android
+          # Kotlin standart kütüphane çakışmalarını önlemek için temizlik
           sed -i '/dependencies {/a \    configurations.all { exclude group: "org.jetbrains.kotlin", module: "kotlin-stdlib-jdk8" }' app/build.gradle
           sed -i '/dependencies {/a \    configurations.all { exclude group: "org.jetbrains.kotlin", module: "kotlin-stdlib-jdk7" }' app/build.gradle
+          
+          # AndroidX ve Jetifier desteğini aktif eder
           echo "android.useAndroidX=true" >> gradle.properties
           echo "android.enableJetifier=true" >> gradle.properties
           echo "kotlin.stdlib.default.dependency=false" >> gradle.properties
@@ -61,10 +69,11 @@ jobs:
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug -PkotlinVersion=1.8.22 --no-daemon
+          # Derleme işlemi - Kotlin versiyonu stabilize edildi
+          ./gradlew assembleDebug -PkotlinVersion=1.9.0 --no-daemon
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: GPS-Plus-v4.9.0-Optimized-APK
+          name: GPS-Plus-v4.7.0-Stable-APK
           path: android/app/build/outputs/apk/debug/app-debug.apk
