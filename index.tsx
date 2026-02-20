@@ -10,16 +10,40 @@ import { SavedLocation, Coordinate } from './types';
 import { FULL_BRAND } from './version';
 
 const App = () => {
-  // Her açılışta onboarding ile başlar
   const [view, setView] = useState<'onboarding' | 'dashboard' | 'capture' | 'list' | 'export' | 'result'>('onboarding');
   const [locations, setLocations] = useState<SavedLocation[]>([]);
   const [lastResult, setLastResult] = useState<SavedLocation | null>(null);
   const [isContinuing, setIsContinuing] = useState(false);
 
   useEffect(() => {
+    // v4.7.0 Geçiş ve Yedekleme Mantığı
     const CURRENT_KEY = 'gps_locations_v4.7.0';
-    const saved = localStorage.getItem(CURRENT_KEY);
+    const OLD_KEY = 'gps_locations_v4.6';
+    const ONBOARDING_KEY = 'onboarding_v4.7.0_done';
+    const OLD_ONBOARDING_KEY = 'onboarding_v4.6_done';
+
+    let saved = localStorage.getItem(CURRENT_KEY);
+    // Eğer yeni anahtarda veri yoksa, eski sürümden yedek al
+    if (!saved) {
+      const oldData = localStorage.getItem(OLD_KEY);
+      if (oldData) {
+        localStorage.setItem(CURRENT_KEY, oldData);
+        saved = oldData;
+      }
+    }
+    
     if (saved) setLocations(JSON.parse(saved));
+
+    let onboardingDone = localStorage.getItem(ONBOARDING_KEY);
+    if (!onboardingDone) {
+      const oldOnboarding = localStorage.getItem(OLD_ONBOARDING_KEY);
+      if (oldOnboarding) {
+        localStorage.setItem(ONBOARDING_KEY, oldOnboarding);
+        onboardingDone = oldOnboarding;
+      }
+    }
+
+    if (onboardingDone === 'true') setView('dashboard');
   }, []);
 
   useEffect(() => {
@@ -27,6 +51,7 @@ const App = () => {
   }, [locations]);
 
   const handleFinishOnboarding = () => {
+    localStorage.setItem('onboarding_v4.7.0_done', 'true');
     setView('dashboard');
   };
 
@@ -52,6 +77,7 @@ const App = () => {
     setView('capture');
   };
 
+  // Merkezi Footer Bileşeni
   const GlobalFooter = () => (
     <footer className="py-6 md:py-8 flex flex-col items-center mt-auto safe-bottom shrink-0 bg-transparent">
       <p className="text-[10px] md:text-[11px] font-black text-slate-300 uppercase tracking-[0.5em] text-center w-full">
@@ -66,10 +92,7 @@ const App = () => {
         
         {view === 'onboarding' && (
           <div className="flex-1 flex flex-col overflow-hidden h-full">
-            <Onboarding 
-              onFinish={handleFinishOnboarding} 
-              onComplete={handleFinishOnboarding} 
-            />
+            <Onboarding onFinish={handleFinishOnboarding} />
             <GlobalFooter />
           </div>
         )}
