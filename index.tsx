@@ -10,7 +10,7 @@ import { SavedLocation, Coordinate } from './types';
 import { FULL_BRAND } from './version';
 
 const App = () => {
-  // GÜNCELLEME: Her açılışta 'onboarding' ile başla
+  // Her açılışta onboarding ile başlar
   const [view, setView] = useState<'onboarding' | 'dashboard' | 'capture' | 'list' | 'export' | 'result'>('onboarding');
   const [locations, setLocations] = useState<SavedLocation[]>([]);
   const [lastResult, setLastResult] = useState<SavedLocation | null>(null);
@@ -18,27 +18,14 @@ const App = () => {
 
   useEffect(() => {
     const CURRENT_KEY = 'gps_locations_v4.7.0';
-    const OLD_KEY = 'gps_locations_v4.6';
-
-    let saved = localStorage.getItem(CURRENT_KEY);
-    if (!saved) {
-      const oldData = localStorage.getItem(OLD_KEY);
-      if (oldData) {
-        localStorage.setItem(CURRENT_KEY, oldData);
-        saved = oldData;
-      }
-    }
-    
+    const saved = localStorage.getItem(CURRENT_KEY);
     if (saved) setLocations(JSON.parse(saved));
-
-    // NOT: Onboarding kontrolü kaldırıldı, uygulama her zaman OnboardingView ile açılacak
   }, []);
 
   useEffect(() => {
     localStorage.setItem('gps_locations_v4.7.0', JSON.stringify(locations));
   }, [locations]);
 
-  // GÜNCELLEME: Başla deyince sadece view değişir, localStorage kaydı yapılmaz
   const handleFinishOnboarding = () => {
     setView('dashboard');
   };
@@ -79,7 +66,10 @@ const App = () => {
         
         {view === 'onboarding' && (
           <div className="flex-1 flex flex-col overflow-hidden h-full">
-            <Onboarding onFinish={handleFinishOnboarding} />
+            <Onboarding 
+              onFinish={handleFinishOnboarding} 
+              onComplete={handleFinishOnboarding} 
+            />
             <GlobalFooter />
           </div>
         )}
