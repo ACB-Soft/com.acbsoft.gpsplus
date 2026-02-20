@@ -25,7 +25,7 @@ jobs:
       - name: Install Project Dependencies
         run: |
           npm install
-          # Filesystem eklentisini buraya ekledik:
+          # Gerekli tüm Capacitor eklentilerinin kurulduğundan emin oluyoruz
           npm install @capacitor/geolocation @capacitor/share @capacitor/filesystem @capacitor/core @capacitor/cli @capacitor/android
           npm install capacitor-native-settings
 
@@ -40,7 +40,17 @@ jobs:
           fi
           npx cap sync android
 
-      # NOT: Force Inject Permissions adımını kaldırdık çünkü AndroidManifest.xml'i manuel güncelledik.
+      - name: Inject Storage Permissions to Manifest
+        run: |
+          # Android 10 ve üzeri için dosya sistemine erişim izinlerini ekliyoruz
+          MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
+          if [ -f "$MANIFEST_PATH" ]; then
+            # Yazma ve Okuma izinlerini enjekte et
+            sed -i '/<manifest/a \    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32" />' $MANIFEST_PATH
+            sed -i '/<manifest/a \    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />' $MANIFEST_PATH
+            # Legacy Storage desteğini application etiketine ekle
+            sed -i 's/<application/<application android:requestLegacyExternalStorage="true"/g' $MANIFEST_PATH
+          fi
 
       - name: Clean & Fix Kotlin Conflict
         run: |
