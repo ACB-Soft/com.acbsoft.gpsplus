@@ -15,7 +15,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          # Kilit dosyası hatasını önlemek için 'cache: npm' satırı kaldırıldı
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -25,9 +24,8 @@ jobs:
 
       - name: Install Project Dependencies
         run: |
-          # Eğer package-lock.json yoksa npm install normal şekilde çalışacaktır
           npm install
-          npm install @capacitor/geolocation @capacitor/core @capacitor/cli @capacitor/android @capacitor/app
+          npm install @capacitor/geolocation @capacitor/core @capacitor/cli @capacitor/android @capacitor/app @capacitor/filesystem @capacitor/share @capacitor/device
           npm install capacitor-native-settings
 
       - name: Build Web App (Vite)
