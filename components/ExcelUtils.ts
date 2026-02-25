@@ -2,10 +2,7 @@ import * as XLSX from 'xlsx';
 import { SavedLocation } from '../types';
 
 export const downloadExcel = (locations: SavedLocation[]) => {
-  if (locations.length === 0) {
-    alert("Kayıt bulunamadı.");
-    return;
-  }
+  if (locations.length === 0) return "";
 
   const data = locations.map(loc => ({
     "Proje / Klasör": loc.folderName,
@@ -20,22 +17,14 @@ export const downloadExcel = (locations: SavedLocation[]) => {
 
   const worksheet = XLSX.utils.json_to_sheet(data);
   const wscols = [
-    { wch: 20 }, // Klasör
-    { wch: 15 }, // Nokta İsmi
-    { wch: 15 }, // Enlem
-    { wch: 15 }, // Boylam
-    { wch: 15 }, // Yükseklik
-    { wch: 15 }, // Hassasiyet
-    { wch: 20 }, // Tarih
-    { wch: 25 }, // Açıklama
+    { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, 
+    { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 25 },
   ];
   worksheet['!cols'] = wscols;
 
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "Saha Verileri");
 
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16);
-  const fileName = `Saha_Verileri_Excel_${timestamp}.xlsx`;
-  
-  XLSX.writeFile(workbook, fileName);
+  // Android için Base64 formatında çıktı alıyoruz
+  return XLSX.write(workbook, { bookType: 'xlsx', type: 'base64' });
 };
