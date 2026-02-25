@@ -13,7 +13,10 @@
     "react-dom": "^19.0.0",
     "xlsx": "^0.18.5",
     "@capacitor/core": "latest",
-    "@capacitor/app": "latest"
+    "@capacitor/app": "latest",
+    "@capacitor/filesystem": "latest",
+    "@capacitor/share": "latest",
+    "@capacitor/device": "latest"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",
