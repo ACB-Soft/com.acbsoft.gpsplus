@@ -3,7 +3,6 @@ import { SavedLocation } from '../types';
 import { downloadKML } from './KMLUtils';
 import { downloadExcel } from './ExcelUtils';
 import { downloadTXT } from './TxtUtils';
-// Capacitor Eklentileri
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { Device } from '@capacitor/device';
@@ -21,13 +20,19 @@ const ExportUnifiedView: React.FC<Props> = ({ locations }) => {
 
   const hasSelection = selected.length > 0;
 
-  // --- ANDROID VE WEB UYUMLU AKTARIM FONKSİYONU ---
+  // --- YENİ İSİMLENDİRME FONKSİYONU ---
+  const generateFileName = (extension: string) => {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16);
+    // Eğer tek proje seçiliyse onun adını, birden fazlaysa "Karma_Proje" kullanır
+    const projectLabel = selected.length === 1 ? selected[0] : "Karma_Proje";
+    return `${projectLabel}_GPS_Plus_${timestamp}.${extension}`;
+  };
+
   const handleUniversalExport = async (content: string, fileName: string, mimeType: string, isBase64: boolean = false) => {
     try {
       const info = await Device.getInfo();
       
       if (info.platform === 'web') {
-        // WEB İÇİN: Klasik yöntem
         const blob = isBase64 
           ? await (await fetch(`data:${mimeType};base64,${content}`)).blob()
           : new Blob([content], { type: mimeType });
@@ -38,9 +43,7 @@ const ExportUnifiedView: React.FC<Props> = ({ locations }) => {
         link.click();
         URL.revokeObjectURL(url);
       } else {
-        // ANDROID İÇİN: Filesystem + Share API
         const data = isBase64 ? content : btoa(unescape(encodeURIComponent(content)));
-        
         const result = await Filesystem.writeFile({
           path: fileName,
           data: data,
@@ -61,8 +64,9 @@ const ExportUnifiedView: React.FC<Props> = ({ locations }) => {
 
   const downloadBackupJSON = () => {
     const dataStr = JSON.stringify(locations, null, 2);
+    // Yedekleme için özel isim
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16);
-    handleUniversalExport(dataStr, `GPS_Plus_Full_Backup_${timestamp}.json`, 'application/json');
+    handleUniversalExport(dataStr, `Full_Backup_GPS_Plus_${timestamp}.json`, 'application/json');
   };
 
   return (
@@ -92,8 +96,9 @@ const ExportUnifiedView: React.FC<Props> = ({ locations }) => {
       </div>
 
       <div className="space-y-4 border-t border-slate-100 pt-8">
+        {/* KML BUTONU */}
         <button 
-          onClick={() => handleUniversalExport(downloadKML(getFiltered()), "proje.kml", "application/vnd.google-earth.kml+xml")} 
+          onClick={() => handleUniversalExport(downloadKML(getFiltered()), generateFileName('kml'), "application/vnd.google-earth.kml+xml")} 
           disabled={!hasSelection} 
           className={`w-full p-6 text-white rounded-3xl font-bold text-xs uppercase flex items-center gap-5 transition-all duration-300 shadow-xl ${
             hasSelection ? 'bg-indigo-600 shadow-indigo-200' : 'bg-slate-300 opacity-40 grayscale cursor-not-allowed shadow-none'
@@ -103,8 +108,9 @@ const ExportUnifiedView: React.FC<Props> = ({ locations }) => {
           <span>Google Earth (.KML)</span>
         </button>
 
+        {/* EXCEL BUTONU */}
         <button 
-          onClick={() => handleUniversalExport(downloadExcel(getFiltered()), "olcumler.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", true)} 
+          onClick={() => handleUniversalExport(downloadExcel(getFiltered()), generateFileName('xlsx'), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", true)} 
           disabled={!hasSelection} 
           className={`w-full p-6 text-white rounded-3xl font-bold text-xs uppercase flex items-center gap-5 transition-all duration-300 shadow-xl ${
             hasSelection ? 'bg-emerald-600 shadow-emerald-200' : 'bg-slate-300 opacity-40 grayscale cursor-not-allowed shadow-none'
@@ -114,8 +120,9 @@ const ExportUnifiedView: React.FC<Props> = ({ locations }) => {
           <span>Excel Dökümanı (.XLSX)</span>
         </button>
 
+        {/* TXT BUTONU */}
         <button 
-          onClick={() => handleUniversalExport(downloadTXT(getFiltered()), "veriler.txt", "text/plain")} 
+          onClick={() => handleUniversalExport(downloadTXT(getFiltered()), generateFileName('txt'), "text/plain")} 
           disabled={!hasSelection} 
           className={`w-full p-6 text-white rounded-3xl font-bold text-xs uppercase flex items-center gap-5 transition-all duration-300 shadow-xl ${
             hasSelection ? 'bg-amber-600 shadow-amber-200' : 'bg-slate-300 opacity-40 grayscale cursor-not-allowed shadow-none'
