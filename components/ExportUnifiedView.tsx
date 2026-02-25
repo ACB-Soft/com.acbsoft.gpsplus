@@ -3,6 +3,7 @@ import { SavedLocation } from '../types';
 import { downloadKML } from './KMLUtils';
 import { downloadExcel } from './ExcelUtils';
 import { downloadTXT } from './TxtUtils';
+// Capacitor Eklentileri
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { Device } from '@capacitor/device';
@@ -20,14 +21,14 @@ const ExportUnifiedView: React.FC<Props> = ({ locations }) => {
 
   const hasSelection = selected.length > 0;
 
-  // --- YENİ İSİMLENDİRME FONKSİYONU ---
+  // --- İSİMLENDİRME FONKSİYONU ---
   const generateFileName = (extension: string) => {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16);
-    // Eğer tek proje seçiliyse onun adını, birden fazlaysa "Karma_Proje" kullanır
     const projectLabel = selected.length === 1 ? selected[0] : "Karma_Proje";
     return `${projectLabel}_GPS_Plus_${timestamp}.${extension}`;
   };
 
+  // --- ANDROID VE WEB UYUMLU AKTARIM FONKSİYONU ---
   const handleUniversalExport = async (content: string, fileName: string, mimeType: string, isBase64: boolean = false) => {
     try {
       const info = await Device.getInfo();
@@ -44,6 +45,7 @@ const ExportUnifiedView: React.FC<Props> = ({ locations }) => {
         URL.revokeObjectURL(url);
       } else {
         const data = isBase64 ? content : btoa(unescape(encodeURIComponent(content)));
+        
         const result = await Filesystem.writeFile({
           path: fileName,
           data: data,
@@ -60,13 +62,6 @@ const ExportUnifiedView: React.FC<Props> = ({ locations }) => {
       console.error("Export Error:", err);
       alert("İşlem gerçekleştirilemedi.");
     }
-  };
-
-  const downloadBackupJSON = () => {
-    const dataStr = JSON.stringify(locations, null, 2);
-    // Yedekleme için özel isim
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16);
-    handleUniversalExport(dataStr, `Full_Backup_GPS_Plus_${timestamp}.json`, 'application/json');
   };
 
   return (
@@ -96,7 +91,6 @@ const ExportUnifiedView: React.FC<Props> = ({ locations }) => {
       </div>
 
       <div className="space-y-4 border-t border-slate-100 pt-8">
-        {/* KML BUTONU */}
         <button 
           onClick={() => handleUniversalExport(downloadKML(getFiltered()), generateFileName('kml'), "application/vnd.google-earth.kml+xml")} 
           disabled={!hasSelection} 
@@ -108,7 +102,6 @@ const ExportUnifiedView: React.FC<Props> = ({ locations }) => {
           <span>Google Earth (.KML)</span>
         </button>
 
-        {/* EXCEL BUTONU */}
         <button 
           onClick={() => handleUniversalExport(downloadExcel(getFiltered()), generateFileName('xlsx'), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", true)} 
           disabled={!hasSelection} 
@@ -120,7 +113,6 @@ const ExportUnifiedView: React.FC<Props> = ({ locations }) => {
           <span>Excel Dökümanı (.XLSX)</span>
         </button>
 
-        {/* TXT BUTONU */}
         <button 
           onClick={() => handleUniversalExport(downloadTXT(getFiltered()), generateFileName('txt'), "text/plain")} 
           disabled={!hasSelection} 
@@ -131,16 +123,6 @@ const ExportUnifiedView: React.FC<Props> = ({ locations }) => {
           <i className="fas fa-file-lines text-xl"></i>
           <span>Metin Belgesi (.TXT)</span>
         </button>
-
-        <div className="pt-4">
-          <button 
-            onClick={downloadBackupJSON} 
-            className="w-full p-4 bg-slate-800 text-white/70 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 active:scale-95 transition-all border border-slate-700"
-          >
-            <i className="fas fa-download"></i>
-            Tüm Veriyi Yedekle (.JSON)
-          </button>
-        </div>
       </div>
     </div>
   );
