@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
-import { App as CapacitorApp } from '@capacitor/app'; // EKLENDİ: Geri tuşu için kütüphane eklendi
+import { App as CapacitorApp } from '@capacitor/app';
 import Onboarding from './components/Onboarding';
 import Dashboard from './components/Dashboard';
 import GPSCapture from './components/GPSCapture';
@@ -10,30 +10,59 @@ import ResultCard from './components/ResultCard';
 import { SavedLocation, Coordinate } from './types';
 import { FULL_BRAND } from './version';
 
+type ViewType = 'onboarding' | 'dashboard' | 'capture' | 'list' | 'export' | 'result';
+
 const App = () => {
-  const [view, setView] = useState<'onboarding' | 'dashboard' | 'capture' | 'list' | 'export' | 'result'>('onboarding');
+  const [view, setView] = useState<ViewType>('onboarding');
   const [locations, setLocations] = useState<SavedLocation[]>([]);
   const [lastResult, setLastResult] = useState<SavedLocation | null>(null);
   const [isContinuing, setIsContinuing] = useState(false);
 
-  // EKLENDİ: Android fiziksel geri tuşu mantığı
+  // --- EKLENDİ: Sayfa Geçmişi Hafızası ---
+  const [history, setHistory] = useState<ViewType[]>([]);
+  const isBackNav = useRef(false);
+
+  // 1. KURAL: Sayfa her değiştiğinde geçmişe kaydet
+  useEffect(() => {
+    if (isBackNav.current) {
+      isBackNav.current = false;
+    } else {
+      setHistory(prev => {
+        if (view === 'dashboard') return ['dashboard']; // Ana ekrana dönünce geçmişi temizle
+        if (prev[prev.length - 1] === view) return prev;
+        return [...prev, view];
+      });
+    }
+  }, [view]);
+
+  // 2. KURAL: Geri tuşuna basıldığında hafızadan bir öncekini bul
   useEffect(() => {
     const backListener = CapacitorApp.addListener('backButton', () => {
-      // Sadece ana ekran (dashboard) veya ilk karşılama ekranındaysa uygulamadan çık
       if (view === 'dashboard' || view === 'onboarding') {
-        CapacitorApp.exitApp();
-      } 
-      // Alt sayfalardaysa ana ekrana geri dön
-      else {
-        setView('dashboard');
+        CapacitorApp.exitApp(); // Ana ekranlarda çıkış yap
+      } else {
+        setHistory(prev => {
+          const newHistory = [...prev];
+          if (newHistory.length > 1) {
+            newHistory.pop(); // Mevcut sayfayı hafızadan sil
+            const previousView = newHistory[newHistory.length - 1]; // Bir önceki sayfayı bul
+            isBackNav.current = true;
+            setView(previousView); // O sayfaya git
+            return newHistory;
+          } else {
+            isBackNav.current = true;
+            setView('dashboard');
+            return ['dashboard'];
+          }
+        });
       }
     });
 
-    // Sayfa değiştiğinde eski dinleyiciyi temizle
     return () => {
       backListener.then(l => l.remove());
     };
   }, [view]);
+  // ----------------------------------------
 
   useEffect(() => {
     // v4.7.0 Geçiş ve Yedekleme Mantığı
